@@ -20,16 +20,20 @@ namespace ObjRenderer
         private string ObjFile;
         private string TextureFile;
 		private ObjModel model;
+		private double currentX = 0;
+		private double currentZ = 0;
+		private float rotation;
+		private double radius = 30;
+		private double angle = 0.1f;
+		private bool draging = false;
+		private Point lastMousePosition;
+
 		public frmMain()
 		{
 			InitializeComponent();
 		}
 
-		double currentX = 0;
-		double currentZ = -55;
-		private float rotation;
-
-        public bool Ready
+		public bool Ready
         {
             get
             {
@@ -47,20 +51,11 @@ namespace ObjRenderer
 			var gl = openGLControl1.OpenGL;
 			gl.ClearColor(0, 0, 0, 0);
 			gl.ShadeModel(OpenGL.GL_SMOOTH);
-			var mat_specular = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };
-			var mat_ambient = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };
-			var mat_diffuse = new float[] { 2.0f, 2.0f, 2.0f, 0.1f };
-			var mat_shininess = new float[] { 100.0f };
-			gl.Material(OpenGL.GL_FRONT, OpenGL.GL_SPECULAR, mat_specular);
+			var mat_ambient = new float[] { 0.5f, 0.5f, 0.5f, 1.0f };
 			gl.Material(OpenGL.GL_FRONT, OpenGL.GL_AMBIENT, mat_ambient);
-			gl.Material(OpenGL.GL_FRONT, OpenGL.GL_DIFFUSE, mat_diffuse);
-			gl.Material(OpenGL.GL_FRONT, OpenGL.GL_SHININESS, mat_shininess);
-			var ambientLight = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };
-			var diffuseLight = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };
-			var posLight0 = new float[] { 2.0f, 0.1f, 0.0f, 0.0f };
+
+			var ambientLight = new float[] { 0.5f, 0.5f, 0.5f, 1.0f };
 			gl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_AMBIENT, ambientLight);
-			gl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_DIFFUSE, diffuseLight);
-			gl.Light(OpenGL.GL_LIGHT0, OpenGL.GL_POSITION, posLight0);
 
 			texture = new Texture();
             if (Ready)
@@ -85,7 +80,14 @@ namespace ObjRenderer
 				gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT | OpenGL.GL_DEPTH_BUFFER_BIT);
 				gl.LoadIdentity();
 
-				gl.LookAt(0, 0, currentZ, currentX, 0, 0, 0, 1, 0);
+				currentX = Math.Sin(angle) * radius;
+				currentZ = Math.Cos(angle) * radius;
+				var centerPoint = calculateCenterPoint(model);
+
+				gl.LookAt(
+					currentX, 0, currentZ,
+					centerPoint.X, centerPoint.Y, centerPoint.Z, 
+					0, 1, 0);
 
 				gl.Rotate(-rotation, 0, 1, 0);
 				rotation += 3.0f;
@@ -233,5 +235,64 @@ namespace ObjRenderer
                 texture.Create(gl, TextureFile);
             }
         }
-    }
+
+		private Vector3 calculateCenterPoint(ObjModel model)
+		{
+			OpenGL gl = openGLControl1.OpenGL;
+
+			var verticsSortByX = from v in model.Vertics
+								 orderby v.X descending
+								 select v;
+			var verticsSortByY = from v in model.Vertics
+								 orderby v.Y descending
+								 select v;
+			var verticsSortByZ = from v in model.Vertics
+								 orderby v.Z descending
+								 select v;
+			var vertexMaxHeightPoint = verticsSortByZ.ElementAt(0);
+			var vertexMinHeightPoint = verticsSortByZ.Last();
+			var vertexMaxRightPoint = verticsSortByX.ElementAt(0);
+			var vertexMinRightPoint = verticsSortByX.Last();
+			var vertexMaxFrontPoint = verticsSortByY.ElementAt(0);
+			var vertexMinFrontPoint = verticsSortByY.Last();
+
+			var maxPoint = new Vector3() { X = vertexMaxRightPoint.X, Y = vertexMaxFrontPoint.Y, Z = vertexMaxHeightPoint.Z };
+			var minPoint = new Vector3() { X = vertexMinRightPoint.X, Y = vertexMinFrontPoint.Y, Z = vertexMinHeightPoint.Z };
+
+			return new Vector3() { X = (maxPoint.X + minPoint.X) / 2, Y = (maxPoint.Y + minPoint.Y) / 2, Z = (maxPoint.Z + minPoint.Z) / 2 };
+		}
+
+		private void OpenGLControl1_MouseDown(object sender, MouseEventArgs e)
+		{
+			if (e.Button == MouseButtons.Left)
+			{
+				draging = true;
+				lastMousePosition = new Point(e.X, e.Y);
+			}
+		}
+
+		private void OpenGLControl1_MouseMove(object sender, MouseEventArgs e)
+		{
+			if (draging)
+			{
+				var offset = e.X - lastMousePosition.X;
+				if (offset > 0)
+				{
+					angle -= 0.1f;
+				}
+				else
+				{
+					angle += 0.1f;
+				}
+			}
+		}
+
+		private void OpenGLControl1_MouseUp(object sender, MouseEventArgs e)
+		{
+			if (e.Button == MouseButtons.Left)
+			{
+				draging = false;
+			}
+		}
+	}
 }
