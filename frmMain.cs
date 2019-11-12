@@ -31,6 +31,19 @@ namespace ObjRenderer
 		public frmMain()
 		{
 			InitializeComponent();
+			MouseWheel += FrmMain_MouseWheel;
+		}
+
+		private void FrmMain_MouseWheel(object sender, MouseEventArgs e)
+		{
+			if (e.Delta > 0)
+			{
+				radius++;
+			}
+			else
+			{
+				radius--;
+			}
 		}
 
 		public bool Ready
